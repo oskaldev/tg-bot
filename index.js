@@ -1,5 +1,7 @@
 const TgApi = require('node-telegram-bot-api');
 const token = '';
+const sequelize = require('./db');
+const UserModel = require('./models');
 const bot = new TgApi(token, { polling: true });
 const chats = {};
 const { gameOptions, againOptions } = require('./options');
@@ -12,7 +14,14 @@ const startGame = async (chatId) => {
   await bot.sendMessage(chatId, 'Отгадай', gameOptions);
 }
 
-const start = () => {
+const start = async () => {
+
+  try {
+    await sequelize.authenticate();
+    await sequelize.sync();
+  } catch (error) {
+    console.log('Подключение к бд не удалось :( ');
+  }
 
   bot.setMyCommands([
     { command: '/start', description: 'Приветствие' },
@@ -23,30 +32,49 @@ const start = () => {
     const text = msg.text;
     const chatId = msg.chat.id;
 
-    if (text === '/start') {
-      await bot.sendSticker(chatId, 'https://cdn.tlgrm.app/stickers/a90/0a5/a900a5fc-426a-4f6d-91f4-00dfc177c257/192/11.webp')
-      return bot.sendMessage(chatId, `Добро пожаловать ${msg.chat.first_name}`);
+    try {
+      if (text === '/start') {
+        await UserModel.create({ chatId });
+        await bot.sendSticker(chatId, 'https://cdn.tlgrm.app/stickers/a90/0a5/a900a5fc-426a-4f6d-91f4-00dfc177c257/192/11.webp')
+        return bot.sendMessage(chatId, `Добро пожаловать ${msg.chat.first_name}`);
+      }
+      if (text === '/info') {
+        const user = await UserModel.findOne({ chatId });
+        return bot.sendMessage(chatId, `Ваш id = ${msg.chat.id}, правильные ответы в игре ${user.right}, неправильные ответы в игре ${user.wrong}`);
+      }
+      if (text === '/game') {
+        return startGame(chatId);
+      }
+      return bot.sendMessage(chatId, 'Выберите команду');
+    } catch (error) {
+      return bot.sendMessage(chatId, 'Произошла ошибка, уже исправляем :) ')
     }
-    if (text === '/info') {
-      return bot.sendMessage(chatId, `Ваш id = ${msg.chat.id}`);
-    }
-    if (text === '/game') {
-      return startGame(chatId);
-    }
-    return bot.sendMessage(chatId, 'Выберите команду');
+
   });
 
   bot.on('callback_query', async msg => {
     const data = msg.data;
     const chatId = msg.message.chat.id;
-    if (data === '/again') {
-      return startGame(chatId);
-    }
-    if (data == chats[ chatId ]) {
-      return bot.sendMessage(chatId, `Поздравляю ты отгадал цифру ${chats[ chatId ]}`, againOptions)
-    } else {
-      return bot.sendMessage(chatId, `К сожалению ты не отгадал это цифра ${chats[ chatId ]}`, againOptions)
-    }
-  })
+    const user = await UserModel.findOne({ chatId });
+
+    try {
+      if (data === '/again') {
+        return startGame(chatId);
+      }
+      if (data == chats[ chatId ]) {
+        user.right++;
+        await bot.sendMessage(chatId, `Поздравляю ты отгадал цифру ${chats[ chatId ]}`, againOptions)
+      } else {
+        user.wrong++;
+        await bot.sendMessage(chatId, `К сожалению ты не отгадал это цифра ${chats[ chatId ]}`, againOptions)
+      }
+      await user.save();
+    } catch (error) {
+      return bot.sendMessage(chatId, 'Произошла ошибка, уже исправляем :) ')
+    };
+  });
+
+
+
 }
 start();
