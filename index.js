@@ -34,8 +34,8 @@ const start = async () => {
 
     try {
       if (text === '/start') {
-        await UserModel.create({ chatId });
-        await bot.sendSticker(chatId, 'https://cdn.tlgrm.app/stickers/a90/0a5/a900a5fc-426a-4f6d-91f4-00dfc177c257/192/11.webp')
+        await UserModel.sync({ chatId });
+        await bot.sendSticker(chatId, 'https://cdn.tlgrm.app/stickers/a90/0a5/a900a5fc-426a-4f6d-91f4-00dfc177c257/192/11.webp');
         return bot.sendMessage(chatId, `Добро пожаловать ${msg.chat.first_name}`);
       }
       if (text === '/info') {
