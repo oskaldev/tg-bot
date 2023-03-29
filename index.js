@@ -1,5 +1,5 @@
 const TgApi = require('node-telegram-bot-api');
-const token = '';
+const token = '5985810457:AAEZKZisnafkPB10Ctv3De0mvz7hIrJOXYk';
 const sequelize = require('./db');
 const UserModel = require('./models');
 const bot = new TgApi(token, { polling: true });
